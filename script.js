@@ -1,14 +1,13 @@
 /*
 ==================================================
-GUESS UP
-SCRIPT PRINCIPAL
+AYVU
 ==================================================
 */
 
 
 /*
 ==================================================
-BANCO DE PALAVRAS
+PALAVRAS
 ==================================================
 */
 
@@ -49,7 +48,6 @@ const WORDS = [
     "UNICÓRNIO",
     "VIOLÃO",
     "ZEBRA",
-
     "ASTRONAUTA",
     "BANANA",
     "BOLA",
@@ -113,7 +111,7 @@ const WORDS = [
 
 /*
 ==================================================
-ELEMENTOS HTML
+ELEMENTOS
 ==================================================
 */
 
@@ -146,7 +144,7 @@ const orientationWarning =
 
 /*
 ==================================================
-CONFIGURAÇÕES DO JOGO
+VARIÁVEIS DO JOGO
 ==================================================
 */
 
@@ -169,93 +167,66 @@ let words = [];
 
 /*
 ==================================================
-CONFIGURAÇÕES DO GIROSCÓPIO
-==================================================
-
-DEAD_ZONE
-
-Zona onde o jogador pode segurar o
-celular normalmente sem disparar nada.
-
-THRESHOLD
-
-Ângulo necessário para executar
-o comando.
-
-RESET_ZONE
-
-Ângulo para onde o celular precisa
-voltar depois de um comando.
-
-HOLD_TIME
-
-Tempo que o jogador precisa permanecer
-inclinado para confirmar o comando.
-
-ACTION_COOLDOWN
-
-Tempo mínimo entre comandos.
-
-SAMPLE_COUNT
-
-Quantidade de leituras usadas para
-calcular uma média e reduzir tremores.
-==================================================
-*/
-
-const DEAD_ZONE = 20;
-
-const TILT_THRESHOLD = 45;
-
-const RESET_ZONE = 15;
-
-const HOLD_TIME = 180;
-
-const ACTION_COOLDOWN = 1000;
-
-const SAMPLE_COUNT = 8;
-
-
-/*
-==================================================
-VARIÁVEIS DO SENSOR
+CONFIGURAÇÕES DO SENSOR
 ==================================================
 */
 
 /*
-Últimas leituras do beta.
+Zona morta.
+
+Movimentos pequenos são ignorados.
 */
-let motionSamples = [];
+
+const DEAD_ZONE = 18;
 
 
 /*
-Depois de executar um comando,
-fica bloqueado até voltar ao centro.
+Ângulo necessário para executar.
 */
+
+const TILT_THRESHOLD = 38;
+
+
+/*
+Depois de executar, o aparelho precisa
+voltar para essa zona para desbloquear.
+*/
+
+const RESET_ZONE = 12;
+
+
+/*
+Quantidade de leituras usadas no filtro.
+*/
+
+const SAMPLE_COUNT = 6;
+
+
+/*
+Tempo mínimo entre ações.
+*/
+
+const ACTION_COOLDOWN = 900;
+
+
+/*
+==================================================
+ESTADO DO SENSOR
+==================================================
+*/
+
+let sensorValues = [];
+
 let gyroLocked = false;
 
+let lastGyroAction = 0;
 
-/*
-Momento em que começou a inclinação.
-*/
-let tiltStartTime = null;
-
-
-/*
-Direção que está sendo mantida.
-*/
-let tiltDirection = null;
-
-
-/*
-Último comando executado.
-*/
-let lastAction = 0;
+let sensorAvailable = false;
 
 
 /*
 ==================================================
-SELEÇÃO DO TEMPO
+TEMPO SELECIONADO
 ==================================================
 */
 
@@ -267,10 +238,6 @@ document
             "click",
             () => {
 
-                /*
-                Remove seleção anterior.
-                */
-
                 document
                     .querySelectorAll(".duration")
                     .forEach(btn => {
@@ -281,15 +248,9 @@ document
 
                     });
 
-
-                /*
-                Seleciona o novo tempo.
-                */
-
                 button.classList.add(
                     "active"
                 );
-
 
                 selectedDuration =
                     Number(
@@ -304,7 +265,7 @@ document
 
 /*
 ==================================================
-BOTÃO COMEÇAR
+COMEÇAR
 ==================================================
 */
 
@@ -314,20 +275,7 @@ document
         "click",
         async () => {
 
-            /*
-            Primeiro pedimos permissão
-            para o giroscópio.
-
-            Isso é necessário principalmente
-            no iPhone.
-            */
-
             await requestMotionPermission();
-
-
-            /*
-            Depois iniciamos o jogo.
-            */
 
             startGame();
 
@@ -337,7 +285,7 @@ document
 
 /*
 ==================================================
-BOTÃO JOGAR NOVAMENTE
+JOGAR NOVAMENTE
 ==================================================
 */
 
@@ -355,7 +303,7 @@ document
 
 /*
 ==================================================
-BOTÃO PASSAR
+BOTÕES MANUAIS
 ==================================================
 */
 
@@ -370,12 +318,6 @@ document
         }
     );
 
-
-/*
-==================================================
-BOTÃO ACERTEI
-==================================================
-*/
 
 document
     .getElementById("correctBtn")
@@ -393,13 +335,6 @@ document
 ==================================================
 TECLADO
 ==================================================
-
-Útil para testar o jogo no computador.
-
-↑ = PASSAR
-
-↓ = ACERTAR
-==================================================
 */
 
 document.addEventListener(
@@ -410,7 +345,6 @@ document.addEventListener(
             return;
         }
 
-
         if (
             event.key === "ArrowUp"
         ) {
@@ -418,7 +352,6 @@ document.addEventListener(
             registerAction("pass");
 
         }
-
 
         if (
             event.key === "ArrowDown"
@@ -434,15 +367,16 @@ document.addEventListener(
 
 /*
 ==================================================
-SOLICITAR PERMISSÃO DO SENSOR
+PERMISSÃO DO SENSOR
 ==================================================
 */
 
 async function requestMotionPermission() {
 
     /*
-    Alguns navegadores não exigem
-    permissão explícita.
+    Se o navegador não possui
+    DeviceOrientationEvent,
+    simplesmente continua.
     */
 
     if (
@@ -456,7 +390,10 @@ async function requestMotionPermission() {
 
 
     /*
-    iOS exige requestPermission().
+    iPhone/iPad.
+
+    O pedido de permissão precisa acontecer
+    dentro de uma ação do usuário.
     */
 
     if (
@@ -473,27 +410,41 @@ async function requestMotionPermission() {
 
 
             if (
-                permission !==
-                "granted"
+                permission === "granted"
             ) {
+
+                sensorAvailable = true;
+
+            } else {
+
+                sensorAvailable = false;
 
                 document
                     .getElementById(
                         "permissionHint"
                     )
                     .textContent =
-                    "Permissão do giroscópio não concedida. Use os botões.";
+                    "Permissão do giroscópio negada. Use os botões.";
 
             }
 
         } catch (error) {
 
-            console.warn(
-                "Erro ao solicitar permissão do giroscópio:",
+            console.error(
+                "Erro no giroscópio:",
                 error
             );
 
         }
+
+    } else {
+
+        /*
+        Android/Chrome normalmente
+        não precisa de pedido explícito.
+        */
+
+        sensorAvailable = true;
 
     }
 
@@ -508,50 +459,16 @@ INICIAR JOGO
 
 function startGame() {
 
-    /*
-    Reseta pontuação.
-    */
-
     score = 0;
 
     passed = 0;
 
     total = 0;
 
-
-    /*
-    Reseta tempo.
-    */
-
     timeLeft =
         selectedDuration;
 
-
-    /*
-    Marca jogo como ativo.
-    */
-
     gameRunning = true;
-
-
-    /*
-    Reseta giroscópio.
-    */
-
-    motionSamples = [];
-
-    gyroLocked = false;
-
-    tiltStartTime = null;
-
-    tiltDirection = null;
-
-    lastAction = 0;
-
-
-    /*
-    Embaralha palavras.
-    */
 
     words =
         shuffle([
@@ -560,7 +477,18 @@ function startGame() {
 
 
     /*
-    Atualiza interface.
+    Reset sensor.
+    */
+
+    sensorValues = [];
+
+    gyroLocked = false;
+
+    lastGyroAction = 0;
+
+
+    /*
+    Interface.
     */
 
     scoreEl.textContent =
@@ -573,16 +501,7 @@ function startGame() {
         timeLeft;
 
 
-    /*
-    Mostra jogo.
-    */
-
     showScreen("game");
-
-
-    /*
-    Primeira palavra.
-    */
 
     nextWord();
 
@@ -593,7 +512,6 @@ function startGame() {
 
     clearInterval(timerId);
 
-
     timerId =
         setInterval(
             () => {
@@ -602,7 +520,6 @@ function startGame() {
 
                 timerEl.textContent =
                     timeLeft;
-
 
                 if (
                     timeLeft <= 0
@@ -618,7 +535,7 @@ function startGame() {
 
 
     /*
-    Ativa o giroscópio.
+    Ativa o sensor.
     */
 
     window.addEventListener(
@@ -628,10 +545,6 @@ function startGame() {
     );
 
 
-    /*
-    Verifica orientação.
-    */
-
     updateOrientationWarning();
 
 }
@@ -639,34 +552,20 @@ function startGame() {
 
 /*
 ==================================================
-FINALIZAR JOGO
+FINALIZAR
 ==================================================
 */
 
 function endGame() {
 
-    /*
-    Evita finalizar duas vezes.
-    */
-
     if (!gameRunning) {
         return;
     }
 
-
     gameRunning = false;
-
-
-    /*
-    Para timer.
-    */
 
     clearInterval(timerId);
 
-
-    /*
-    Remove listener do giroscópio.
-    */
 
     window.removeEventListener(
         "deviceorientation",
@@ -675,21 +574,15 @@ function endGame() {
     );
 
 
-    /*
-    Atualiza tela de resultado.
-    */
-
     document
         .getElementById("finalScore")
         .textContent =
         score;
 
-
     document
         .getElementById("finalPassed")
         .textContent =
         passed;
-
 
     document
         .getElementById("finalTotal")
@@ -710,11 +603,6 @@ PRÓXIMA PALAVRA
 
 function nextWord() {
 
-    /*
-    Quando acabarem as palavras,
-    embaralha novamente.
-    */
-
     if (
         words.length === 0
     ) {
@@ -727,32 +615,9 @@ function nextWord() {
     }
 
 
-    /*
-    Mostra próxima palavra.
-    */
-
     wordEl.textContent =
         words.pop();
 
-
-    /*
-    Libera nova inclinação.
-    */
-
-    tiltStartTime = null;
-
-    tiltDirection = null;
-
-    motionSamples = [];
-
-
-    /*
-    Não desbloqueamos aqui.
-
-    O desbloqueio acontece quando o
-    jogador voltar fisicamente o celular
-    para a zona neutra.
-    */
 
     statusEl.textContent =
         "INCLINE O CELULAR";
@@ -778,12 +643,11 @@ function registerAction(action) {
 
 
     /*
-    Proteção contra múltiplos comandos
-    muito próximos.
+    Proteção contra múltiplos comandos.
     */
 
     if (
-        now - lastAction <
+        now - lastGyroAction <
         ACTION_COOLDOWN
     ) {
 
@@ -791,19 +655,15 @@ function registerAction(action) {
     }
 
 
-    lastAction =
+    lastGyroAction =
         now;
 
-
-    /*
-    Conta a palavra.
-    */
 
     total++;
 
 
     /*
-    ACERTOU
+    ACERTO.
     */
 
     if (
@@ -812,7 +672,6 @@ function registerAction(action) {
 
         score++;
 
-
         statusEl.textContent =
             "✓ ACERTOU!";
 
@@ -820,23 +679,18 @@ function registerAction(action) {
 
 
     /*
-    PASSOU
+    PASSOU.
     */
 
     else {
 
         passed++;
 
-
         statusEl.textContent =
             "↟ PASSOU";
 
     }
 
-
-    /*
-    Atualiza pontuação.
-    */
 
     scoreEl.textContent =
         score;
@@ -846,22 +700,20 @@ function registerAction(action) {
 
 
     /*
-    Pequeno atraso visual.
+    Próxima palavra.
     */
 
     setTimeout(
         () => {
 
-            if (
-                gameRunning
-            ) {
+            if (gameRunning) {
 
                 nextWord();
 
             }
 
         },
-        180
+        200
     );
 
 }
@@ -874,24 +726,14 @@ GIROSCÓPIO
 
 IMPORTANTE:
 
-beta positivo:
+Não usamos mais somente o beta
+como anteriormente.
 
-    celular inclinado com
-    topo para cima
+Calculamos um valor de inclinação
+com beta e gamma.
 
-    ↓
-
-    PASSAR
-
-
-beta negativo:
-
-    celular inclinado com
-    topo para baixo
-
-    ↓
-
-    ACERTAR
+Isso melhora a compatibilidade com
+diferentes posições do celular.
 ==================================================
 */
 
@@ -903,42 +745,14 @@ function handleOrientation(event) {
 
 
     /*
-    Verifica orientação.
-    */
-
-    updateOrientationWarning();
-
-
-    /*
-    Se estiver vertical,
-    ignoramos o giroscópio.
-    */
-
-    if (
-        !isLandscape()
-    ) {
-
-        motionSamples = [];
-
-        gyroLocked = false;
-
-        tiltStartTime = null;
-
-        tiltDirection = null;
-
-        statusEl.textContent =
-            "VIRE PARA A HORIZONTAL";
-
-        return;
-    }
-
-
-    /*
-    Verifica se temos beta.
+    Verifica se temos os valores.
     */
 
     if (
         typeof event.beta !==
+        "number" ||
+
+        typeof event.gamma !==
         "number"
     ) {
 
@@ -948,109 +762,130 @@ function handleOrientation(event) {
 
     /*
     ==================================================
-    FILTRO
+    BETA
     ==================================================
 
-    Adicionamos a leitura.
+    Movimento para frente/trás.
     */
 
-    motionSamples.push(
-        event.beta
-    );
+    const beta =
+        event.beta;
 
 
     /*
-    Mantemos somente as últimas
-    SAMPLE_COUNT leituras.
+    ==================================================
+    GAMMA
+    ==================================================
+
+    Movimento lateral.
     */
 
+    const gamma =
+        event.gamma;
+
+
+    /*
+    ==================================================
+    ESCOLHER O EIXO
+    ==================================================
+
+    Quando o aparelho está horizontal,
+    dependendo da orientação física,
+    beta/gamma podem trocar de função.
+
+    Usamos o eixo que tiver maior
+    inclinação.
+    */
+
+    let tilt;
+
+    let axis;
+
+
     if (
-        motionSamples.length >
-        SAMPLE_COUNT
+        Math.abs(beta) >
+        Math.abs(gamma)
     ) {
 
-        motionSamples.shift();
+        tilt = beta;
+
+        axis = "beta";
+
+    } else {
+
+        tilt = gamma;
+
+        axis = "gamma";
 
     }
 
 
     /*
-    Ainda não temos leituras suficientes.
+    ==================================================
+    FILTRO
+    ==================================================
     */
 
+    sensorValues.push(tilt);
+
+
     if (
-        motionSamples.length <
+        sensorValues.length >
         SAMPLE_COUNT
     ) {
 
-        statusEl.textContent =
-            "SEGURE O CELULAR...";
+        sensorValues.shift();
+
+    }
+
+
+    if (
+        sensorValues.length <
+        SAMPLE_COUNT
+    ) {
 
         return;
     }
 
 
     /*
-    ==================================================
-    CALCULAR MÉDIA
-    ==================================================
+    Média das leituras.
     */
 
-    const beta =
-        motionSamples.reduce(
-            (
-                sum,
-                value
-            ) => {
-
-                return sum + value;
-
-            },
+    const average =
+        sensorValues.reduce(
+            (sum, value) =>
+                sum + value,
             0
         ) /
-        motionSamples.length;
+        sensorValues.length;
 
 
     /*
     ==================================================
     DESBLOQUEIO
     ==================================================
-
-    Depois de passar/acertar,
-    o jogador precisa voltar o celular
-    para a zona neutra.
-
-    Isso é muito importante.
-
-    Sem isso, segurando o celular
-    inclinado o jogo poderia continuar
-    passando palavras.
     */
 
-    if (
-        gyroLocked
-    ) {
+    if (gyroLocked) {
+
+        /*
+        Voltou para a posição neutra.
+        */
 
         if (
-            Math.abs(beta) <=
+            Math.abs(average) <=
             RESET_ZONE
         ) {
 
             gyroLocked = false;
 
-            tiltStartTime = null;
-
-            tiltDirection = null;
+            sensorValues = [];
 
             statusEl.textContent =
                 "PRONTO";
 
         }
-
-
-        /*
-        Continua bloqueado.
-        */
 
         return;
     }
@@ -1060,20 +895,12 @@ function handleOrientation(event) {
     ==================================================
     DEAD ZONE
     ==================================================
-
-    De -20° até +20°:
-
-    NÃO FAZ NADA.
     */
 
     if (
-        Math.abs(beta) <=
+        Math.abs(average) <=
         DEAD_ZONE
     ) {
-
-        tiltStartTime = null;
-
-        tiltDirection = null;
 
         statusEl.textContent =
             "INCLINE O CELULAR";
@@ -1084,131 +911,59 @@ function handleOrientation(event) {
 
     /*
     ==================================================
-    DETECTAR DIREÇÃO
+    MOVIMENTO
     ==================================================
     */
 
-    let direction = null;
+    let action = null;
 
 
     /*
     ==========================================
-    PASSAR
+    MOVIMENTO POSITIVO
     ==========================================
 
-    O topo do celular está para cima.
+    Por padrão:
+
+    positivo = PASSAR
     */
 
     if (
-        beta >=
+        average >=
         TILT_THRESHOLD
     ) {
 
-        direction =
-            "pass";
+        action = "pass";
 
     }
 
 
     /*
     ==========================================
-    ACERTAR
+    MOVIMENTO NEGATIVO
     ==========================================
 
-    O topo do celular está para baixo.
+    negativo = ACERTAR
     */
 
     else if (
-        beta <=
+        average <=
         -TILT_THRESHOLD
     ) {
 
-        direction =
-            "correct";
+        action = "correct";
 
     }
 
 
     /*
-    ==================================================
-    ENTRE DEAD ZONE E THRESHOLD
-    ==================================================
-
-    Exemplo:
-
-    +20° até +45°
-
-    Ainda não executa.
+    Ainda não inclinou o suficiente.
     */
 
-    if (
-        direction === null
-    ) {
+    if (!action) {
 
         statusEl.textContent =
             "INCLINE MAIS...";
-
-        tiltStartTime = null;
-
-        tiltDirection = null;
-
-        return;
-    }
-
-
-    /*
-    ==================================================
-    CONFIRMAR DIREÇÃO
-    ==================================================
-
-    Se começou uma nova inclinação,
-    começamos a contar o tempo.
-    */
-
-    if (
-        tiltDirection !==
-        direction
-    ) {
-
-        tiltDirection =
-            direction;
-
-        tiltStartTime =
-            Date.now();
-
-        statusEl.textContent =
-            direction === "pass"
-                ? "SEGURE PARA PASSAR"
-                : "SEGURE PARA ACERTAR";
-
-        return;
-    }
-
-
-    /*
-    ==================================================
-    TEMPO INCLINADO
-    ==================================================
-    */
-
-    const heldTime =
-        Date.now() -
-        tiltStartTime;
-
-
-    /*
-    Ainda não segurou tempo suficiente.
-    */
-
-    if (
-        heldTime <
-        HOLD_TIME
-    ) {
-
-        statusEl.textContent =
-            direction === "pass"
-                ? "SEGURE PARA PASSAR"
-                : "SEGURE PARA ACERTAR";
 
         return;
     }
@@ -1225,7 +980,7 @@ function handleOrientation(event) {
 
 
     if (
-        now - lastAction <
+        now - lastGyroAction <
         ACTION_COOLDOWN
     ) {
 
@@ -1235,35 +990,18 @@ function handleOrientation(event) {
 
     /*
     ==================================================
-    EXECUTAR COMANDO
+    EXECUTAR
     ==================================================
-    */
-
-    lastAction =
-        now;
-
-
-    /*
-    Bloqueia o giroscópio.
-
-    O jogador agora precisa voltar
-    o celular para a posição neutra.
     */
 
     gyroLocked = true;
 
 
-    tiltStartTime = null;
+    sensorValues = [];
 
-    tiltDirection = null;
-
-
-    /*
-    Executa a ação.
-    */
 
     registerAction(
-        direction
+        action
     );
 
 }
@@ -1271,14 +1009,14 @@ function handleOrientation(event) {
 
 /*
 ==================================================
-VERIFICAR ORIENTAÇÃO
+DETECTAR HORIZONTAL
 ==================================================
 */
 
 function isLandscape() {
 
     /*
-    Método principal.
+    screen.orientation.
     */
 
     if (
@@ -1293,8 +1031,7 @@ function isLandscape() {
 
 
     /*
-    Fallback para navegadores
-    que não possuem screen.orientation.
+    Fallback.
     */
 
     return (
@@ -1307,7 +1044,7 @@ function isLandscape() {
 
 /*
 ==================================================
-AVISO DE CELULAR VERTICAL
+AVISO DE ORIENTAÇÃO
 ==================================================
 */
 
@@ -1330,7 +1067,7 @@ function updateOrientationWarning() {
 
 /*
 ==================================================
- MUDANÇA DE TAMANHO DA TELA
+RESIZE
 ==================================================
 */
 
@@ -1349,18 +1086,13 @@ window.addEventListener(
 
 /*
 ==================================================
-MUDANÇA DE ORIENTAÇÃO
+ORIENTATION CHANGE
 ==================================================
 */
 
 window.addEventListener(
     "orientationchange",
     () => {
-
-        /*
-        Dá tempo para o navegador
-        atualizar a viewport.
-        */
 
         setTimeout(
             updateOrientationWarning,
@@ -1401,7 +1133,7 @@ function showScreen(name) {
 
 /*
 ==================================================
-EMBARALHAR ARRAY
+EMBARALHAR
 ==================================================
 */
 
