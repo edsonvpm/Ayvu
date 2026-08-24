@@ -1,77 +1,252 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
-  <title>Guess Up</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1,
+        viewport-fit=cover, user-scalable=no"
+    >
+
+    <meta name="theme-color" content="#0f172a">
+
+    <title>Ayvu</title>
+
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <main id="app">
+
+<main id="app">
+
+    <!-- MENU -->
     <section id="home" class="screen active">
-      <div class="logo">GUESS<span>UP</span></div>
-      <p class="subtitle">Adivinhe. Incline. Divirta-se.</p>
 
-      <div class="setup-card">
-        <label for="duration">Tempo da rodada</label>
-        <div class="duration-row">
-          <button class="duration active" data-seconds="60">60s</button>
-          <button class="duration" data-seconds="90">90s</button>
-          <button class="duration" data-seconds="120">120s</button>
+        <div class="logo">
+            AY<span>VU</span>
         </div>
-      </div>
 
-      <div class="rules">
-        <div><b>📱</b><span>Segure o celular na horizontal</span></div>
-        <div><b>⬆️</b><span>Vire para cima para <strong>PASSAR</strong></span></div>
-        <div><b>⬇️</b><span>Vire para baixo para <strong>ACERTAR</strong></span></div>
-      </div>
+        <p class="subtitle">
+            Adivinhe. Incline. Divirta-se.
+        </p>
 
-      <button id="startBtn" class="primary">COMEÇAR</button>
-      <p id="permissionHint" class="hint">O navegador pode pedir permissão para usar o giroscópio.</p>
+        <div class="setup-card">
+
+            <label>Tempo da rodada</label>
+
+            <div class="duration-row">
+
+                <button
+                    class="duration active"
+                    data-seconds="60">
+                    60s
+                </button>
+
+                <button
+                    class="duration"
+                    data-seconds="90">
+                    90s
+                </button>
+
+                <button
+                    class="duration"
+                    data-seconds="120">
+                    120s
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="rules">
+
+            <div>
+                <b>📱</b>
+                <span>
+                    Deixe o celular na horizontal
+                </span>
+            </div>
+
+            <div>
+                <b>⬆️</b>
+                <span>
+                    Parte de cima para cima →
+                    <strong>PASSAR</strong>
+                </span>
+            </div>
+
+            <div>
+                <b>⬇️</b>
+                <span>
+                    Parte de cima para baixo →
+                    <strong>ACERTAR</strong>
+                </span>
+            </div>
+
+        </div>
+
+        <button id="startBtn" class="primary">
+            COMEÇAR
+        </button>
+
+        <p id="permissionHint" class="hint">
+            O navegador pode pedir permissão para usar o giroscópio.
+        </p>
+
     </section>
 
+
+    <!-- JOGO -->
     <section id="game" class="screen">
-      <header class="game-header">
-        <div class="score-box"><small>ACERTOS</small><strong id="score">0</strong></div>
-        <div class="timer" id="timer">60</div>
-        <div class="score-box"><small>PASSOU</small><strong id="passed">0</strong></div>
-      </header>
 
-      <div id="orientationWarning" class="orientation-warning">
-        <div class="phone-icon">📱</div>
-        <h2>Vire o celular</h2>
-        <p>O jogo precisa estar na <strong>horizontal</strong>.</p>
-      </div>
+        <header class="game-header">
 
-      <div id="gameArea" class="game-area">
-        <div class="instruction">INCLINE O CELULAR</div>
-        <div id="word" class="word">CARREGANDO</div>
-        <div class="status-pill" id="status">AGUARDANDO</div>
+            <div class="score-box">
+                <small>ACERTOS</small>
+                <strong id="score">0</strong>
+            </div>
 
-        <div class="controls">
-          <button id="passBtn" class="control pass">⬆️ PASSAR</button>
-          <button id="correctBtn" class="control correct">⬇️ ACERTEI</button>
+            <div
+                class="timer"
+                id="timer">
+                60
+            </div>
+
+            <div class="score-box">
+                <small>PASSOU</small>
+                <strong id="passed">0</strong>
+            </div>
+
+        </header>
+
+
+        <!-- AVISO DE ORIENTAÇÃO -->
+
+        <div
+            id="orientationWarning"
+            class="orientation-warning">
+
+            <div class="phone-icon">
+                📱
+            </div>
+
+            <h2>
+                Vire o celular
+            </h2>
+
+            <p>
+                O jogo precisa estar na
+                <strong>horizontal</strong>.
+            </p>
+
         </div>
-        <p class="keyboard-hint">No computador: ↑ passar · ↓ acertar</p>
-      </div>
+
+
+        <div class="game-area">
+
+            <div class="instruction">
+                INCLINE O CELULAR
+            </div>
+
+            <div
+                id="word"
+                class="word">
+                CARREGANDO
+            </div>
+
+            <div
+                id="status"
+                class="status-pill">
+                AGUARDANDO
+            </div>
+
+
+            <div class="controls">
+
+                <button
+                    id="passBtn"
+                    class="control pass">
+                    ⬆️ PASSAR
+                </button>
+
+                <button
+                    id="correctBtn"
+                    class="control correct">
+                    ⬇️ ACERTEI
+                </button>
+
+            </div>
+
+            <p class="keyboard-hint">
+                Computador: ↑ passar · ↓ acertar
+            </p>
+
+        </div>
+
     </section>
+
+
+    <!-- RESULTADO -->
 
     <section id="result" class="screen">
-      <div class="result-card">
-        <div class="result-icon">🏆</div>
-        <h1>Fim de jogo!</h1>
-        <div class="final-score" id="finalScore">0</div>
-        <p>palavras acertadas</p>
-        <div class="result-stats">
-          <div><strong id="finalPassed">0</strong><span>passadas</span></div>
-          <div><strong id="finalTotal">0</strong><span>jogadas</span></div>
+
+        <div class="result-card">
+
+            <div class="result-icon">
+                🏆
+            </div>
+
+            <h1>
+                Fim de jogo!
+            </h1>
+
+            <div
+                id="finalScore"
+                class="final-score">
+                0
+            </div>
+
+            <p>
+                palavras acertadas
+            </p>
+
+            <div class="result-stats">
+
+                <div>
+                    <strong id="finalPassed">
+                        0
+                    </strong>
+
+                    <span>
+                        passadas
+                    </span>
+                </div>
+
+                <div>
+                    <strong id="finalTotal">
+                        0
+                    </strong>
+
+                    <span>
+                        jogadas
+                    </span>
+                </div>
+
+            </div>
+
+            <button
+                id="againBtn"
+                class="primary">
+                JOGAR NOVAMENTE
+            </button>
+
         </div>
-        <button id="againBtn" class="primary">JOGAR NOVAMENTE</button>
-      </div>
+
     </section>
-  </main>
-  <script src="script.js"></script>
+
+</main>
+
+<script src="script.js"></script>
+
 </body>
 </html>
